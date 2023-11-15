@@ -5,7 +5,6 @@
 #define MAX_STACK_SIZE 300
 #define MAX_HEAP_SIZE 300
 #define MAX_NUM_OF_FRAMES 5
-// #define MAX_FRAME_LIST_SIZE 105
 
 struct framestatus {
 	int number;               // frame number
@@ -13,6 +12,12 @@ struct framestatus {
 	int functionaddress;      // address of function in code section (will be randomly generated in this case)
 	int frameaddress;         // starting address of frame belonging to this header in Stack
 	int used;                 // a boolean value indicating wheter the frame status entry is in use or not
+};
+
+struct allocated {
+	char name[8];
+	int startaddress;
+	struct allocated * next;
 };
 
 struct freelist {
@@ -39,6 +44,7 @@ int is_callable(char *memory, int *current_stack_pointer)
 	}
 	return 0;
 }
+
 int countDecimalPlaces(double fraction) {
     int count = 0;
     while (1) {
@@ -297,6 +303,67 @@ void deleteFrame(char *memory, int *frame_number_of_the_frame_which_is_on_top_of
 	*frame_number_of_the_frame_which_is_on_top_of_the_stack = *frame_number_of_the_frame_which_is_on_top_of_the_stack - 1;
 }
 
+void create_character_buffer_on_heap(struct freelist** head, struct allocated** headAllocatedList, char *variable_name, int size_of_buffer, char *memory, int *current_stack_pointer)
+{
+	struct freelist * freeListTraverser = *head;
+	while (freeListTraverser != NULL)
+	{
+		if (freeListTraverser->size >= size_of_buffer + 8)
+		{
+			//creating a new node for the allocated list
+			struct allocated * newAllocatedNode = (struct allocated *)malloc(sizeof(struct allocated));
+			strcpy(newAllocatedNode->name, variable_name);
+			newAllocatedNode->startaddress = freeListTraverser->start;
+			newAllocatedNode->next = NULL;
+
+			//adding the new node to the allocated list
+			if (*headAllocatedList == NULL)
+			{
+				*headAllocatedList = newAllocatedNode;
+			}
+			else
+			{
+				struct allocated * allocatedListTraverser = *headAllocatedList;
+				while (allocatedListTraverser->next != NULL)
+				{
+					allocatedListTraverser = allocatedListTraverser->next;
+				}
+				allocatedListTraverser->next = newAllocatedNode;
+			}
+
+			//updating the free list
+			if (freeListTraverser->size == size_of_buffer)
+			{
+				if (freeListTraverser == *head)
+				{
+					*head = freeListTraverser->next;
+				}
+				else
+				{
+					struct freelist * freeListTraverser2 = *head;
+					while (freeListTraverser2->next != freeListTraverser)
+					{
+						freeListTraverser2 = freeListTraverser2->next;
+					}
+					freeListTraverser2->next = freeListTraverser->next;
+				}
+			}
+			else
+			{
+				freeListTraverser->start = freeListTraverser->start + size_of_buffer;
+				freeListTraverser->size = freeListTraverser->size - size_of_buffer;
+			}
+
+			//updating the stack pointer
+			*current_stack_pointer = *current_stack_pointer - size_of_buffer;
+
+			//returning the address of the allocated memory
+			return;
+		}
+		freeListTraverser = freeListTraverser->next;
+	}
+}
+
 int main ()
 {
 	// Initializing the counter to keep track of number of frames on stack
@@ -326,9 +393,17 @@ int main ()
 	}
 
 	// Initializing the free list of the heap memory
-	struct freelist * head;
-	struct freelist freenode;
-	head = &freenode;
+	struct freelist * headFreeList;
+	headFreeList = (struct freelist*)malloc(sizeof(struct freelist));
+
+	//Initializing the allocated list of the heap memory
+	struct allocated * headAllocatedList;
+	headAllocatedList = NULL;
+	
+
+	headFreeList->start = 0;
+	headFreeList->size = 100;
+	headFreeList->next = NULL;
 
 	//Testing for create_frame function
 	char argument1[] = "mainFRAM";
