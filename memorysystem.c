@@ -303,7 +303,7 @@ void deleteFrame(char *memory, int *frame_number_of_the_frame_which_is_on_top_of
 	*frame_number_of_the_frame_which_is_on_top_of_the_stack = *frame_number_of_the_frame_which_is_on_top_of_the_stack - 1;
 }
 
-void create_character_buffer_on_heap(struct freelist** head, struct allocated** headAllocatedList, char *variable_name, int size_of_buffer, char *memory, int *current_stack_pointer)
+void create_character_buffer_on_heap(struct freelist** head, struct allocated** headAllocatedList, char *variable_name, int size_of_buffer, char *memory, int *current_stack_pointer, int *frame_number_of_the_frame_which_is_on_top_of_the_stack, struct var_tracker **variables_of_frames_on_stack_tracker)
 {
 	struct freelist * freeListTraverser = *head;
 	while (freeListTraverser != NULL)
@@ -313,7 +313,7 @@ void create_character_buffer_on_heap(struct freelist** head, struct allocated** 
 			//creating a new node for the allocated list
 			struct allocated * newAllocatedNode = (struct allocated *)malloc(sizeof(struct allocated));
 			strcpy(newAllocatedNode->name, variable_name);
-			newAllocatedNode->startaddress = freeListTraverser->start;
+			newAllocatedNode->startaddress = freeListTraverser->start + 8;
 			newAllocatedNode->next = NULL;
 
 			//adding the new node to the allocated list
@@ -331,8 +331,26 @@ void create_character_buffer_on_heap(struct freelist** head, struct allocated** 
 				allocatedListTraverser->next = newAllocatedNode;
 			}
 
+			//copying the size of the buffer and the magic number into the memory right before the data of the buffer
+			char casted_size_of_buffer[4] = {'0', '0', '0', '0'};
+			intToCharArray(size_of_buffer, casted_size_of_buffer, 0);
+			memccpy(&memory[freeListTraverser->start], casted_size_of_buffer, 4, 4);
+
+			char casted_magic_number[4] = {'0', '0', '0', '0'};
+			int magic_number = rand() % 10000;
+			intToCharArray(magic_number, casted_magic_number, 0);
+			memccpy(&memory[freeListTraverser->start + 4], casted_magic_number, 4, 4);
+
+			create_integer_local_variable(variable_name, freeListTraverser->start + 8, memory, frame_number_of_the_frame_which_is_on_top_of_the_stack, variables_of_frames_on_stack_tracker, current_stack_pointer);
+
+			//marking the memory used by the buffer as allocated
+			for (int i = newAllocatedNode->startaddress; i < newAllocatedNode->startaddress + size_of_buffer; ++i)
+			{
+				memory[i] = 'A';
+			}
+
 			//updating the free list
-			if (freeListTraverser->size == size_of_buffer)
+			if (freeListTraverser->size == size_of_buffer + 8)
 			{
 				if (freeListTraverser == *head)
 				{
@@ -350,8 +368,8 @@ void create_character_buffer_on_heap(struct freelist** head, struct allocated** 
 			}
 			else
 			{
-				freeListTraverser->start = freeListTraverser->start + size_of_buffer;
-				freeListTraverser->size = freeListTraverser->size - size_of_buffer;
+				freeListTraverser->start = freeListTraverser->start + (size_of_buffer + 8);
+				freeListTraverser->size = freeListTraverser->size - (size_of_buffer + 8);
 			}
 
 			//updating the stack pointer
@@ -396,15 +414,19 @@ int main ()
 	struct freelist * headFreeList;
 	headFreeList = (struct freelist*)malloc(sizeof(struct freelist));
 
-	//Initializing the allocated list of the heap memory
-	struct allocated * headAllocatedList;
-	headAllocatedList = NULL;
-	
-
 	headFreeList->start = 0;
 	headFreeList->size = 100;
 	headFreeList->next = NULL;
 
+	for (int i = 0; i < headFreeList->size; ++i)
+	{
+    	memory[i] = 'F';
+	}
+
+	//Initializing the allocated list of the heap memory
+	struct allocated * headAllocatedList;
+	headAllocatedList = NULL;
+	
 	//Testing for create_frame function
 	char argument1[] = "mainFRAM";
 	char argument2[] = "1050";
