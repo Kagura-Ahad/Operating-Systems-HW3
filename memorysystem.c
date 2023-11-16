@@ -373,7 +373,7 @@ void create_character_buffer_on_heap(struct freelist** head, struct allocated** 
 			}
 
 			//updating the stack pointer
-			*current_stack_pointer = *current_stack_pointer - size_of_buffer;
+			*current_stack_pointer = *current_stack_pointer + 4;
 
 			//returning the address of the allocated memory
 			return;
@@ -441,15 +441,16 @@ int main ()
 	create_char_local_variable("var5", 'a', memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
 	create_char_local_variable("var6", 'b', memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
 	create_integer_local_variable("var7", 2163, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var8", 10, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
 	
-	for (int i = 0; i < number_of_frames_on_stack; ++i)
-	{
-		printf("Frame number: %d\n", i + 1);
-		printf("Frame's higher occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_higher_occupancy);
-		printf("Frame's lower occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_lower_occupancy);
-	}
+	// for (int i = 0; i < number_of_frames_on_stack; ++i)
+	// {
+	// 	printf("Frame number: %d\n", i + 1);
+	// 	printf("Frame's higher occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_higher_occupancy);
+	// 	printf("Frame's lower occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_lower_occupancy);
+	// }
 
-	deleteFrame(memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// deleteFrame(memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
 	
 	for (int i = 0; i < 500; ++i) {
         printf("%d) %c \n", i, memory[i]);
