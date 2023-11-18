@@ -31,6 +31,35 @@ struct var_tracker {
 	int index_of_higher_occupancy;
 };
 
+int extractInteger(char arr[], int size);
+
+// Function to print the contents of the linked list
+void printFreelist(struct freelist *headFreeList) {
+    struct freelist *currentNode = headFreeList;
+
+    printf("Contents of the Free list:\n");
+
+    // Traverse the linked list and print the contents of each node
+    while (currentNode != NULL) {
+        printf("Start Address: %d \n Size: %d\n", currentNode->start, currentNode->size);
+        currentNode = currentNode->next;
+    }
+}
+
+void printAllocatedList(struct allocated *headAllocatedList, char *memory) {
+    struct allocated *currentNode = headAllocatedList;
+
+    printf("Contents of the allocated list:\n");
+
+    // Traverse the linked list and print the contents of each node
+    while (currentNode != NULL) {
+		char sizeOfThisAllocatedRegionInCharArray[] = {memory[currentNode->startaddress - 8], memory[currentNode->startaddress - 7], memory[currentNode->startaddress - 6], memory[currentNode->startaddress - 5]};
+		int sizeOfThisAllocatedRegion = extractInteger(sizeOfThisAllocatedRegionInCharArray, 4);
+        printf("Name: %s \n Start Address: %d\n Size: %d\n", currentNode->name, currentNode->startaddress, sizeOfThisAllocatedRegion);
+        currentNode = currentNode->next;
+    }
+}
+
 // Function to check if the the frame on top of the stack has occupied the minimum space required for a frame
 int is_callable(char *memory, int *current_stack_pointer)
 {
@@ -134,6 +163,19 @@ void intToCharArray(int num, char* casted_int_value, int is_negative)
         arr_index += 1;
         divisor /= 10;
     }
+}
+
+int extractInteger(char arr[], int size)
+{
+  int number = 0;
+  for (int i = 0; i < size; i++)
+  {
+    if (arr[i] >= '0' && arr[i] <= '9')
+    {
+      number = number * 10 + (arr[i] - '0');
+    }
+  }
+  return number;
 }
 
 void createFrame(char *functionName, char *functionAddress, char *memory, int *frame_number, struct var_tracker **variables_of_frames_on_stack_tracker, int *current_stack_pointer)
@@ -372,13 +414,69 @@ void create_character_buffer_on_heap(struct freelist** head, struct allocated** 
 				freeListTraverser->size = freeListTraverser->size - (size_of_buffer + 8);
 			}
 
-			//updating the stack pointer
-			*current_stack_pointer = *current_stack_pointer + 4;
-
 			//returning the address of the allocated memory
 			return;
 		}
 		freeListTraverser = freeListTraverser->next;
+	}
+}
+
+void delete_character_buffer_on_heap(struct freelist** head, struct allocated** headAllocatedList, char *variable_name, char *memory)
+{
+	struct allocated * allocatedListTraverser = *headAllocatedList;
+	while (allocatedListTraverser != NULL)
+	{
+		if (strcmp(allocatedListTraverser->name, variable_name) == 0)
+		{
+			//extracting the size of the allocated region
+			char sizeOfThisAllocatedRegionInCharArray[] = {memory[allocatedListTraverser->startaddress - 8], memory[allocatedListTraverser->startaddress - 7], memory[allocatedListTraverser->startaddress - 6], memory[allocatedListTraverser->startaddress - 5]};
+			int sizeOfThisAllocatedRegion = extractInteger(sizeOfThisAllocatedRegionInCharArray, 4);
+
+			//marking the memory used by the buffer as free
+			for (int i = allocatedListTraverser->startaddress - 8; i < allocatedListTraverser->startaddress + sizeOfThisAllocatedRegion; ++i)
+			{
+				memory[i] = 'F';
+			}
+
+			//updating the free list
+			struct freelist * newFreeNode = (struct freelist *)malloc(sizeof(struct freelist));
+			newFreeNode->start = allocatedListTraverser->startaddress - 8;
+			newFreeNode->size = 8 + sizeOfThisAllocatedRegion;
+			newFreeNode->next = NULL;
+
+			if (*head == NULL)
+			{
+				*head = newFreeNode;
+			}
+			else
+			{
+				struct freelist * freeListTraverser = *head;
+				while (freeListTraverser->next != NULL)
+				{
+					freeListTraverser = freeListTraverser->next;
+				}
+				freeListTraverser->next = newFreeNode;
+			}
+
+			//updating the allocated list
+			if (allocatedListTraverser == *headAllocatedList)
+			{
+				*headAllocatedList = allocatedListTraverser->next;
+			}
+			else
+			{
+				struct allocated * allocatedListTraverser2 = *headAllocatedList;
+				while (allocatedListTraverser2->next != allocatedListTraverser)
+				{
+					allocatedListTraverser2 = allocatedListTraverser2->next;
+				}
+				allocatedListTraverser2->next = allocatedListTraverser->next;
+			}
+			free(allocatedListTraverser);
+			//returning the address of the allocated memory
+			return;
+		}
+		allocatedListTraverser = allocatedListTraverser->next;
 	}
 }
 
@@ -431,17 +529,33 @@ int main ()
 	char argument1[] = "mainFRAM";
 	char argument2[] = "1050";
 	createFrame(argument1, argument2, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_integer_local_variable("var1", -130, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_double_local_variable("var2", -1.56789, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_integer_local_variable("var3", -179, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	char argument3[] = "eightchr";
-	char argument4[] = "1080";
-	createFrame(argument3, argument4, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_double_local_variable("var4", 213.5678, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_char_local_variable("var5", 'a', memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_char_local_variable("var6", 'b', memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_integer_local_variable("var7", 2163, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var8", 10, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
+	create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var1", 62, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
+	printFreelist(headFreeList);
+	printAllocatedList(headAllocatedList, memory);
+	printf("------------------------------------------------------------------\n");
+
+	delete_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var1", memory);
+	printFreelist(headFreeList);
+	printAllocatedList(headAllocatedList, memory);
+	printf("------------------------------------------------------------------\n");
+
+	create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var2", 52, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
+	printFreelist(headFreeList);
+	printAllocatedList(headAllocatedList, memory);
+	printf("------------------------------------------------------------------\n");
+	
+
+	// create_integer_local_variable("var1", -130, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// create_double_local_variable("var2", -1.56789, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// create_integer_local_variable("var3", -179, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// char argument3[] = "eightchr";
+	// char argument4[] = "1080";
+	// createFrame(argument3, argument4, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// create_double_local_variable("var4", 213.5678, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// create_char_local_variable("var5", 'a', memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// create_char_local_variable("var6", 'b', memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// create_integer_local_variable("var7", 2163, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var8", 10, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
 	
 	// for (int i = 0; i < number_of_frames_on_stack; ++i)
 	// {
@@ -463,29 +577,6 @@ int main ()
 		printf("Frame's higher occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_higher_occupancy);
 		printf("Frame's lower occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_lower_occupancy);
 	}
-
-
-/*	head->start = 0;
-	head->size = 100;
-	head->next = NULL;
-
-
-	fs.number = 1;
-	strcpy(fs.name, "main");
-	fs.functionaddress = rand() % 100;
-	fs.frameaddress = 395;
-	fs.used = 1;
-
-	printf ("frame number: %d\n", fs.number);
-	printf ("function name: %s\n", fs.name);
-	printf ("function address: %d\n", fs.functionaddress);
-	printf ("frame address: %d\n", fs.frameaddress);
-	printf ("frame usage: %d\n", fs.used);
-
-
-	printf ("size of free space on heap: %d\n", head->start);
-	printf ("starting address of free heap region: %d\n", head->size);
-*/
 
 	// char input[50];
     // char command[2];
