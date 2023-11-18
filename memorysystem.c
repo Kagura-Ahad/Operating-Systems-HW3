@@ -480,6 +480,68 @@ void delete_character_buffer_on_heap(struct freelist** head, struct allocated** 
 	}
 }
 
+void show_memory_map(char *memory, int number_of_frames_on_stack, struct var_tracker **variables_of_frames_on_stack_tracker, int current_stack_size, int current_heap_size, int current_stack_pointer, struct freelist *headFreeList, struct allocated *headAllocatedList)
+{
+	printf("MEMORY MAP:\n");
+	printf("------------------------------------------------------------------\n");
+	printf("------------------------------------------------------------------\n");
+	printf("------------------------------------------------------------------\n");
+	printf("Stack:\n");
+	printf("------------------------------------------------------------------\n");
+	printf("Stack Size: %d\n", current_stack_size);
+	printf("Stack Pointer: %d\n", current_stack_pointer);
+	printf("------------------------------------------------------------------\n");
+	printf("Heap:\n");
+	printf("------------------------------------------------------------------\n");
+	printf("Heap Size: %d\n", current_heap_size);
+	printf("------------------------------------------------------------------\n");
+	printf("Frames:\n");
+	printf("------------------------------------------------------------------\n");
+	for (int i = 0; i < number_of_frames_on_stack; ++i)
+	{
+		if (variables_of_frames_on_stack_tracker[i] == NULL)
+		{
+			printf("No more than %d stack frames have been initialized yet.\n", i);
+			break;
+		}
+		else
+		{
+			printf("Frame number: %d\n", i + 1);
+			printf("Frame's higher occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_higher_occupancy);
+			printf("Frame's lower occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_lower_occupancy);
+		}
+	}
+	printf("------------------------------------------------------------------\n");
+	printf("Free List:\n");
+	printf("------------------------------------------------------------------\n");
+	printFreelist(headFreeList);
+	printf("------------------------------------------------------------------\n");
+	printf("Allocated List:\n");
+	printf("------------------------------------------------------------------\n");
+	printAllocatedList(headAllocatedList, memory);
+	printf("------------------------------------------------------------------\n");
+	printf("Memory looks like the below representation:\n");
+	for (int i = 0; i < 500; ++i)
+	{
+		if (memory[i] == 'U')
+		{
+			printf("%d) UNUSED \n", i + 1);
+		}
+		else if (memory[i] == 'F')
+		{
+			printf("%d) FREE \n", i + 1);
+		}
+		else if (memory[i] == 'A')
+		{
+			printf("%d) ALLOCATED \n", i + 1);
+		}
+		else
+		{
+			printf("%d) %c \n", i + 1, memory[i]);
+		}
+	}
+}
+
 int main ()
 {
 	// Initializing the counter to keep track of number of frames on stack
@@ -526,23 +588,23 @@ int main ()
 	headAllocatedList = NULL;
 	
 	//Testing for create_frame function
-	char argument1[] = "mainFRAM";
-	char argument2[] = "1050";
-	createFrame(argument1, argument2, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var1", 62, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
-	printFreelist(headFreeList);
-	printAllocatedList(headAllocatedList, memory);
-	printf("------------------------------------------------------------------\n");
+	// char argument1[] = "mainFRAM";
+	// char argument2[] = "1050";
+	// createFrame(argument1, argument2, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+	// create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var1", 62, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
+	// printFreelist(headFreeList);
+	// printAllocatedList(headAllocatedList, memory);
+	// printf("------------------------------------------------------------------\n");
 
-	delete_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var1", memory);
-	printFreelist(headFreeList);
-	printAllocatedList(headAllocatedList, memory);
-	printf("------------------------------------------------------------------\n");
+	// delete_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var1", memory);
+	// printFreelist(headFreeList);
+	// printAllocatedList(headAllocatedList, memory);
+	// printf("------------------------------------------------------------------\n");
 
-	create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var2", 52, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
-	printFreelist(headFreeList);
-	printAllocatedList(headAllocatedList, memory);
-	printf("------------------------------------------------------------------\n");
+	// create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var2", 52, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
+	// printFreelist(headFreeList);
+	// printAllocatedList(headAllocatedList, memory);
+	// printf("------------------------------------------------------------------\n");
 	
 
 	// create_integer_local_variable("var1", -130, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
