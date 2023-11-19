@@ -5,6 +5,11 @@
 #define MAX_STACK_SIZE 300
 #define MAX_HEAP_SIZE 300
 #define MAX_NUM_OF_FRAMES 5
+#define MIN_FRAME_SIZE 10
+#define MAX_FRAME_SIZE 80
+#define INT_VARIABLE_SIZE 4
+#define DOUBLE_VARIABLE_SIZE 8
+#define CHAR_VARIABLE_SIZE 1
 
 struct framestatus {
 	int number;               // frame number
@@ -54,7 +59,7 @@ void printAllocatedList(struct allocated *headAllocatedList, char *memory) {
     // Traverse the linked list and print the contents of each node
     while (currentNode != NULL) {
 		char sizeOfThisAllocatedRegionInCharArray[] = {memory[currentNode->startaddress - 8], memory[currentNode->startaddress - 7], memory[currentNode->startaddress - 6], memory[currentNode->startaddress - 5]};
-		int sizeOfThisAllocatedRegion = extractInteger(sizeOfThisAllocatedRegionInCharArray, 4);
+		int sizeOfThisAllocatedRegion = extractInteger(sizeOfThisAllocatedRegionInCharArray, INT_VARIABLE_SIZE);
         printf("Name: %s \n Start Address: %d\n Size: %d\n", currentNode->name, currentNode->startaddress, sizeOfThisAllocatedRegion);
         currentNode = currentNode->next;
     }
@@ -63,11 +68,10 @@ void printAllocatedList(struct allocated *headAllocatedList, char *memory) {
 // Function to check if the the frame on top of the stack has occupied the minimum space required for a frame
 int is_callable(char *memory, int *current_stack_pointer)
 {
-	for (int i = *current_stack_pointer - 10; i <= *current_stack_pointer; ++i)
+	for (int i = *current_stack_pointer - MIN_FRAME_SIZE; i <= *current_stack_pointer; ++i)
 	{
 		if (memory[i] == 'U')
 		{
-			break;
 			return 1;
 		}
 	}
@@ -194,7 +198,7 @@ void createFrame(char *functionName, char *functionAddress, char *memory, int *f
     variables_of_frames_on_stack_tracker[(*frame_number) - 1] = new_var_tracker;
 
 	//labelling the minimum size of frame number of bytes of memory alloted for this frame as unused
-	for (int i = *current_stack_pointer - 10; i < *current_stack_pointer; ++i)
+	for (int i = *current_stack_pointer - MIN_FRAME_SIZE; i < *current_stack_pointer; ++i)
 	{
         memory[i] = 'U';
     }
@@ -209,7 +213,7 @@ void createFrame(char *functionName, char *functionAddress, char *memory, int *f
 
 	//cast frame address to char array
 	char casted_frame_address[4] = {'0','0','0','0'};
-	intToCharArray(*current_stack_pointer, casted_frame_address, 0); //TODO:condition to put in the main call where it checks if the given frame address is negative or not
+	intToCharArray(*current_stack_pointer, casted_frame_address, 0); 
 
 	//cast used to char
 	char casted_used = '1';
@@ -240,11 +244,9 @@ void createFrame(char *functionName, char *functionAddress, char *memory, int *f
 
 void create_integer_local_variable(char *variable_name, int int_value, char *memory, int *frame_number_of_the_frame_which_is_on_top_of_the_stack, struct var_tracker **variables_of_frames_on_stack_tracker, int *current_stack_pointer)
 {
-	//TODO: condition to put in the main call where it says if int is negative it shouldnt be greater than 3 bytes and if it is positive it shouldnt be greater than 4 bytes
-
 	//cast integer value to char array
 	int is_negative = 0;
-	char casted_int_value[4] = {'0', '0', '0', '0'};
+	char casted_int_value[INT_VARIABLE_SIZE] = {'0', '0', '0', '0'};
 	if (int_value < 0)
 	{
 		is_negative = 1;
@@ -257,11 +259,11 @@ void create_integer_local_variable(char *variable_name, int int_value, char *mem
 	intToCharArray(int_value, casted_int_value, is_negative);
 
 	//copying the variable value of this frame onto the frame list
-	memcpy(&memory[*current_stack_pointer - 4], casted_int_value, 4);
+	memcpy(&memory[*current_stack_pointer - INT_VARIABLE_SIZE], casted_int_value, INT_VARIABLE_SIZE);
 
 	// Modifying the value of relevant pointers
-	*current_stack_pointer = *current_stack_pointer - 4;
-	variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy = variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy - 4;
+	*current_stack_pointer = *current_stack_pointer - INT_VARIABLE_SIZE;
+	variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy = variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy - INT_VARIABLE_SIZE;
 }
 
 void create_double_local_variable(char *variable_name, double double_value, char *memory, int *frame_number_of_the_frame_which_is_on_top_of_the_stack, struct var_tracker **variables_of_frames_on_stack_tracker, int *current_stack_pointer)
@@ -270,7 +272,7 @@ void create_double_local_variable(char *variable_name, double double_value, char
 
 	//cast double value to char array
 	int is_negative = 0;
-	char casted_double_value[8] = {'0', '0', '0', '0', '0', '0', '0', '0'};
+	char casted_double_value[DOUBLE_VARIABLE_SIZE] = {'0', '0', '0', '0', '0', '0', '0', '0'};
 	if (double_value < 0)
 	{
 		is_negative = 1;
@@ -287,21 +289,21 @@ void create_double_local_variable(char *variable_name, double double_value, char
 	doubleToCharArray(double_value, casted_double_value, is_negative);
 
 	//copying the variable value of this frame onto the frame list
-	memcpy(&memory[*current_stack_pointer - 8], casted_double_value, 8);
+	memcpy(&memory[*current_stack_pointer - DOUBLE_VARIABLE_SIZE], casted_double_value, DOUBLE_VARIABLE_SIZE);
 
 	// Modifying the value of relevant pointers
-	*current_stack_pointer = *current_stack_pointer - 8;
-	variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy = variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy - 8;
+	*current_stack_pointer = *current_stack_pointer - DOUBLE_VARIABLE_SIZE;
+	variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy = variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy - DOUBLE_VARIABLE_SIZE;
 }
 
 void create_char_local_variable(char *variable_name, char char_value, char *memory, int *frame_number_of_the_frame_which_is_on_top_of_the_stack, struct var_tracker **variables_of_frames_on_stack_tracker, int *current_stack_pointer)
 {
 	//copying the variable value of this frame onto the frame list
-	memcpy(&memory[*current_stack_pointer - 1], &char_value, 1);
+	memcpy(&memory[*current_stack_pointer - CHAR_VARIABLE_SIZE], &char_value, CHAR_VARIABLE_SIZE);
 
 	// Modifying the value of relevant pointers
-	*current_stack_pointer = *current_stack_pointer - 1;
-	variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy = variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy - 1;
+	*current_stack_pointer = *current_stack_pointer - CHAR_VARIABLE_SIZE;
+	variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy = variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy - CHAR_VARIABLE_SIZE;
 }
 
 void deleteFrame(char *memory, int *frame_number_of_the_frame_which_is_on_top_of_the_stack, struct var_tracker **variables_of_frames_on_stack_tracker, int *current_stack_pointer)
@@ -523,22 +525,7 @@ void show_memory_map(char *memory, int number_of_frames_on_stack, struct var_tra
 	printf("Memory looks like the below representation:\n");
 	for (int i = 0; i < 500; ++i)
 	{
-		if (memory[i] == 'U')
-		{
-			printf("%d) UNUSED \n", i + 1);
-		}
-		else if (memory[i] == 'F')
-		{
-			printf("%d) FREE \n", i + 1);
-		}
-		else if (memory[i] == 'A')
-		{
-			printf("%d) ALLOCATED \n", i + 1);
-		}
-		else
-		{
-			printf("%d) %c \n", i + 1, memory[i]);
-		}
+		printf("%d) %c \n", i + 1, memory[i]);	
 	}
 }
 
@@ -586,193 +573,197 @@ int main ()
 	//Initializing the allocated list of the heap memory
 	struct allocated * headAllocatedList;
 	headAllocatedList = NULL;
-	
-	//Testing for create_frame function
-	// char argument1[] = "mainFRAM";
-	// char argument2[] = "1050";
-	// createFrame(argument1, argument2, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var1", 62, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
-	// printFreelist(headFreeList);
-	// printAllocatedList(headAllocatedList, memory);
-	// printf("------------------------------------------------------------------\n");
 
-	// delete_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var1", memory);
-	// printFreelist(headFreeList);
-	// printAllocatedList(headAllocatedList, memory);
-	// printf("------------------------------------------------------------------\n");
-
-	// create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var2", 52, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
-	// printFreelist(headFreeList);
-	// printAllocatedList(headAllocatedList, memory);
-	// printf("------------------------------------------------------------------\n");
-	
-
-	// create_integer_local_variable("var1", -130, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// create_double_local_variable("var2", -1.56789, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// create_integer_local_variable("var3", -179, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// char argument3[] = "eightchr";
-	// char argument4[] = "1080";
-	// createFrame(argument3, argument4, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// create_double_local_variable("var4", 213.5678, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// create_char_local_variable("var5", 'a', memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// create_char_local_variable("var6", 'b', memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// create_integer_local_variable("var7", 2163, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	// create_character_buffer_on_heap(&headFreeList, &headAllocatedList, "var8", 10, memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
-	
-	// for (int i = 0; i < number_of_frames_on_stack; ++i)
-	// {
-	// 	printf("Frame number: %d\n", i + 1);
-	// 	printf("Frame's higher occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_higher_occupancy);
-	// 	printf("Frame's lower occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_lower_occupancy);
-	// }
-
-	// deleteFrame(memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
-	
-	for (int i = 0; i < 500; ++i) {
-        printf("%d) %c \n", i, memory[i]);
-    }
-
-	printf("current stack pointer: %d\n", current_stack_pointer);
-	for (int i = 0; i < number_of_frames_on_stack; ++i)
+	char input[50];
+    char command[2];
+    char argument1[50];
+    char argument2[50];
+	while (1)
 	{
-		printf("Frame number: %d\n", i + 1);
-		printf("Frame's higher occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_higher_occupancy);
-		printf("Frame's lower occupancy: %d\n", variables_of_frames_on_stack_tracker[i]->index_of_lower_occupancy);
+		printf(">");
+		fgets(input, sizeof(input), stdin);
+		int count = sscanf(input, "%s %s %s", command, argument1, argument2);
+		if (count == 3)
+		{
+			if (strcmp(command, "CF") == 0)
+			{
+				int funct_name_alr_exist = 0;
+				if (strlen(argument1) > 8)
+				{
+					printf("Function name too long\n");
+				}
+				else if(number_of_frames_on_stack == MAX_NUM_OF_FRAMES)
+				{
+					printf("cannot create another frame, maximum number of frames have reached\n");
+				}
+				else if ((current_stack_size > (MAX_STACK_SIZE - MIN_FRAME_SIZE)) || ((current_stack_pointer < current_stack_size - MIN_FRAME_SIZE) && ((MEMSIZE - current_stack_pointer) + MIN_FRAME_SIZE + current_heap_size > MEMSIZE)))
+				{
+					printf("stack overflow, not enough memory available for new function\n");
+				}
+				else if (is_callable(memory, &current_stack_pointer) == 1)
+				{
+					printf("Please occupy the space alotted to the frame you just created before creating another frame\n");
+				}
+				else
+				{
+					if (number_of_frames_on_stack > 0)
+					{
+						//checking if the function name already exists
+						for (int i = 1; i <= number_of_frames_on_stack; ++i)
+						{
+							if (strcmp(argument1, &memory[(MEMSIZE - (i * 20)) + 4]) == 0)
+							{
+								funct_name_alr_exist = 1;
+								break;
+							}
+						}
+					}
+					if (funct_name_alr_exist == 0)
+					{
+						createFrame(argument1, argument2, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+						if ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) > current_stack_size)
+						{
+							current_stack_size += ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) - current_stack_size);
+						}
+					}
+					else if (funct_name_alr_exist == 1)
+					{
+						printf("Function name already exists\n");
+					}
+				}
+
+			}
+			else if (strcmp(command, "CI") == 0)
+			{
+				if (variables_of_frames_on_stack_tracker[0] == NULL)
+				{
+					printf("No frame has been created yet\n");
+				}
+				else
+				{
+					int int_value = atoi(argument2);
+					if (int_value > 9999 || int_value < -999)
+					{
+						printf("Integer value out of range\n");
+					}
+					else if ((current_stack_size > (MAX_STACK_SIZE - INT_VARIABLE_SIZE)) || ((current_stack_pointer < current_stack_size - INT_VARIABLE_SIZE) && ((MEMSIZE - current_stack_pointer) + INT_VARIABLE_SIZE + current_heap_size > MEMSIZE)))
+					{
+						printf("stack overflow, not enough memory available for new integer variable\n");
+					}
+					else if (abs(variables_of_frames_on_stack_tracker[number_of_frames_on_stack - 1]->index_of_higher_occupancy - variables_of_frames_on_stack_tracker[number_of_frames_on_stack - 1]->index_of_lower_occupancy) > MAX_FRAME_SIZE - INT_VARIABLE_SIZE)
+					{
+						printf("the frame is full, cannot create more data on it\n");
+					}
+					else
+					{
+						create_integer_local_variable(argument1, int_value, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+						if ((MEMSIZE - current_stack_pointer + INT_VARIABLE_SIZE) > current_stack_size)
+						{
+							current_stack_size += ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) - current_stack_size);
+						}
+					}
+				}
+			}
+			else if (strcmp(command, "CD") == 0)
+			{
+				if (variables_of_frames_on_stack_tracker[0] == NULL)
+				{
+					printf("No frame has been created yet\n");
+				}
+				else
+				{
+					double double_value = atof(argument2);
+					if (strlen(argument2) > 8)
+					{
+						printf("Double value out of range\n");
+					}
+					else if ((current_stack_size > (MAX_STACK_SIZE - DOUBLE_VARIABLE_SIZE)) || ((current_stack_pointer < current_stack_size - DOUBLE_VARIABLE_SIZE) && ((MEMSIZE - current_stack_pointer) + DOUBLE_VARIABLE_SIZE + current_heap_size > MEMSIZE)))
+					{
+						printf("stack overflow, not enough memory available for new double variable\n");
+					}
+					else if (abs(variables_of_frames_on_stack_tracker[number_of_frames_on_stack - 1]->index_of_higher_occupancy - variables_of_frames_on_stack_tracker[number_of_frames_on_stack - 1]->index_of_lower_occupancy) > MAX_FRAME_SIZE - DOUBLE_VARIABLE_SIZE)
+					{
+						printf("the frame is full, cannot create more data on it\n");
+					}
+					else
+					{
+						create_double_local_variable(argument1, double_value, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+						if ((MEMSIZE - current_stack_pointer + DOUBLE_VARIABLE_SIZE) > current_stack_size)
+						{
+							current_stack_size += ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) - current_stack_size);
+						}
+					}
+				}
+			}
+			else if (strcmp(command, "CC") == 0)
+			{
+				if (variables_of_frames_on_stack_tracker[0] == NULL)
+				{
+					printf("No frame has been created yet\n");
+				}
+				else
+				{
+					if (strlen(argument2) > 1)
+					{
+						printf("Character value too long\n");
+					}
+					else if ((current_stack_size > (MAX_STACK_SIZE - CHAR_VARIABLE_SIZE)) || ((current_stack_pointer < current_stack_size - CHAR_VARIABLE_SIZE) && ((MEMSIZE - current_stack_pointer) + CHAR_VARIABLE_SIZE + current_heap_size > MEMSIZE)))
+					{
+						printf("stack overflow, not enough memory available for new character variable\n");
+					}
+					else if (abs(variables_of_frames_on_stack_tracker[number_of_frames_on_stack - 1]->index_of_higher_occupancy - variables_of_frames_on_stack_tracker[number_of_frames_on_stack - 1]->index_of_lower_occupancy) > MAX_FRAME_SIZE - CHAR_VARIABLE_SIZE)
+					{
+						printf("the frame is full, cannot create more data on it\n");
+					}
+					else
+					{
+						create_char_local_variable(argument1, argument2[0], memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+						if ((MEMSIZE - current_stack_pointer + CHAR_VARIABLE_SIZE) > current_stack_size)
+						{
+							current_stack_size += ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) - CHAR_VARIABLE_SIZE);
+						}
+					}
+				}
+			}
+			else if (strcmp(command, "CH") == 0)
+			{
+				
+			}
+			else {
+				printf("Invalid command\n");
+			}
+		}
+		else if (count == 2)
+		{
+			if (strcmp(command, "DH") == 0)
+			{
+				
+			}
+			else
+			{
+				printf("Invalid command\n");
+			}
+		}
+		else if (count == 1)
+		{
+			if (strcmp(command, "DF") == 0)
+			{
+				
+			}
+			else if (strcmp(command, "SM") == 0)
+			{
+				show_memory_map(memory, number_of_frames_on_stack, variables_of_frames_on_stack_tracker, current_stack_size, current_heap_size, current_stack_pointer, headFreeList, headAllocatedList);
+			}
+			else
+			{
+				printf("Invalid command\n");
+			}
+		}
+		else
+		{
+			printf("Invalid command\n");
+		}
 	}
-
-	// char input[50];
-    // char command[2];
-    // char argument1[50];
-    // char argument2[50];
-	// while (1)
-	// {
-	// 	fgets(input, sizeof(input), stdin);
-	// 	int count = sscanf(input, "%s %s %s", command, argument1, argument2);
-	// 	if (count == 3)
-	// 	{
-	// 		if (strcmp(command, "CF") == 0)
-	// 		{
-	// 			int funct_name_alr_exist = 1;
-	// 			if (strlen(argument1) > 8)
-	// 			{
-	// 				printf("Function name too long\n");
-	// 			}
-	// 			else if(number_of_frames_on_stack == MAX_NUM_OF_FRAMES)
-	// 			{
-	// 				printf("cannot create another frame, maximum number of frames have reached\n");
-	// 			}
-	// 			else if (current_stack_size >= 290)
-	// 			{
-	// 				printf("stack overflow, not enough memory available for new function\n");
-	// 			}
-	// 			else
-	// 			{
-	// 				if (number_of_frames_on_stack > 0)
-	// 				{
-	// 					//checking if the function name already exists
-	// 					for (int i = 1; i <= number_of_frames_on_stack; ++i)
-	// 					{
-	// 						if (strcmp(argument1, &memory[(MEMSIZE - (i * 20)) + 4]) == 0)
-	// 						{
-	// 							funct_name_alr_exist = 0;
-	// 							break;
-	// 						}
-	// 					}
-	// 				}
-	// 				if (funct_name_alr_exist == 1)
-	// 				{
-	// 					createFrame(argument1, argument2, memory, &number_of_frames_on_stack);
-	// 				}
-	// 				else if (funct_name_alr_exist == 0)
-	// 				{
-	// 					printf("Function name already exists\n");
-	// 				}
-	// 			}
-
-	// 		}
-	// 		else if (strcmp(command, "CI") == 0)
-	// 		{
-				
-	// 		}
-	// 		else if (strcmp(command, "CD") == 0)
-	// 		{
-				
-	// 		}
-	// 		else if (strcmp(command, "CC") == 0)
-	// 		{
-				
-	// 		}
-	// 		else if (strcmp(command, "CH") == 0)
-	// 		{
-	// 			int var_callable = is_callable(memory);
-	// 			if (var_callable == 0)
-	// 			{
-	// 				//FUNCTION CALL HERE
-	// 			}
-	// 			else if (var_callable == 1)
-	// 			{
-	// 				printf("Please alott some variables to the frame you just created before typing another command. Use these commands to alott variables: CI, CD, CC\n");
-	// 			}
-	// 		}
-	// 		else {
-	// 			printf("Invalid command\n");
-	// 		}
-	// 	}
-	// 	else if (count == 2)
-	// 	{
-	// 		if (strcmp(command, "DH") == 0)
-	// 		{
-	// 			int var_callable = is_callable(memory);
-	// 			if (var_callable == 0)
-	// 			{
-	// 				//FUNCTION CALL HERE
-	// 			}
-	// 			else if (var_callable == 1)
-	// 			{
-	// 				printf("Please alott some variables to the frame you just created before typing another command. Use these commands to alott variables: CI, CD, CC\n");
-	// 			}
-	// 		}
-	// 		else
-	// 		{
-	// 			printf("Invalid command\n");
-	// 		}
-	// 	}
-	// 	else if (count == 1)
-	// 	{
-	// 		if (strcmp(command, "DF") == 0)
-	// 		{
-	// 			int var_callable = is_callable(memory);
-	// 			if (var_callable == 0)
-	// 			{
-	// 				//FUNCTION CALL HERE
-	// 			}
-	// 			else if (var_callable == 1)
-	// 			{
-	// 				printf("Please alott some variables to the frame you just created before typing another command. Use these commands to alott variables: CI, CD, CC\n");
-	// 			}
-	// 		}
-	// 		else if (strcmp(command, "SM") == 0)
-	// 		{
-	// 			int var_callable = is_callable(memory);
-	// 			if (var_callable == 0)
-	// 			{
-	// 				//FUNCTION CALL HERE
-	// 			}
-	// 			else if (var_callable == 1)
-	// 			{
-	// 				printf("Please alott some variables to the frame you just created before typing another command. Use these commands to alott variables: CI, CD, CC\n");
-	// 			}
-	// 		}
-	// 		else
-	// 		{
-	// 			printf("Invalid command\n");
-	// 		}
-	// 	}
-	// 	else
-	// 	{
-	// 		printf("Invalid command\n");
-	// 	}
-	// }
 
 	return 0;
 }
