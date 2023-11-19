@@ -100,51 +100,6 @@ int getIntegerLength(int number) {
     return length;
 }
 
-void calculateDivisor(int number, int *divisor) {
-    *divisor = 1;
-    while (number / *divisor >= 10) {
-        *divisor *= 10;
-    }
-}
-
-void appendDigitsToArray(int number, int divisor, char *array, int *index) {
-    while (divisor > 0) {
-        int digit = (number / divisor) % 10;
-        array[*index] = '0' + digit;
-        (*index)++;
-        divisor /= 10;
-    }
-}
-
-void doubleToCharArray(double num, char *castedIntValue, int is_negative) {
-    int integerPart = (int)num;
-    double decimalPart = num - integerPart;
-
-    int intPartLength = getIntegerLength(integerPart);
-    int decimalPartLength = countDecimalPlaces(decimalPart);
-
-    for (int i = 0; i < decimalPartLength; i++) {
-        decimalPart *= 10;
-    }
-    int decimalPartInt = (int)decimalPart;
-
-    int totalLength = intPartLength + decimalPartLength;
-
-    int divisorForIntPart, divisorForDecimalPart;
-    calculateDivisor(integerPart, &divisorForIntPart);
-    calculateDivisor(decimalPartInt, &divisorForDecimalPart);
-
-    int arrIndex = 8 - totalLength - 1;
-	if (is_negative == 1)
-	{
-		castedIntValue[arrIndex - 1] = '-';
-	}
-    appendDigitsToArray(integerPart, divisorForIntPart, castedIntValue, &arrIndex);
-    castedIntValue[arrIndex] = '.';
-    arrIndex++;
-    appendDigitsToArray(decimalPartInt, divisorForDecimalPart, castedIntValue, &arrIndex);
-}
-
 void intToCharArray(int num, char* casted_int_value, int is_negative)
 {
     int length = getIntegerLength(num);
@@ -266,30 +221,10 @@ void create_integer_local_variable(char *variable_name, int int_value, char *mem
 	variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy = variables_of_frames_on_stack_tracker[(*frame_number_of_the_frame_which_is_on_top_of_the_stack) - 1]->index_of_lower_occupancy - INT_VARIABLE_SIZE;
 }
 
-void create_double_local_variable(char *variable_name, double double_value, char *memory, int *frame_number_of_the_frame_which_is_on_top_of_the_stack, struct var_tracker **variables_of_frames_on_stack_tracker, int *current_stack_pointer)
+void create_double_local_variable(char *variable_name, char *double_value, char *memory, int *frame_number_of_the_frame_which_is_on_top_of_the_stack, struct var_tracker **variables_of_frames_on_stack_tracker, int *current_stack_pointer)
 {
-	//TODO: condition to check if the given double value is negative or not and if it is negative then it shouldnt be greater than 7 bytes and if it is positive then it shouldnt be greater than 8 bytes
-
-	//cast double value to char array
-	int is_negative = 0;
-	char casted_double_value[DOUBLE_VARIABLE_SIZE] = {'0', '0', '0', '0', '0', '0', '0', '0'};
-	if (double_value < 0)
-	{
-		is_negative = 1;
-		casted_double_value[0] = ' ';
-		casted_double_value[1] = ' ';
-		casted_double_value[2] = ' ';
-		casted_double_value[3] = ' ';
-		casted_double_value[4] = ' ';
-		casted_double_value[5] = ' ';
-		casted_double_value[6] = ' ';
-		casted_double_value[7] = ' ';
-		double_value = double_value * -1;
-	}
-	doubleToCharArray(double_value, casted_double_value, is_negative);
-
 	//copying the variable value of this frame onto the frame list
-	memcpy(&memory[*current_stack_pointer - DOUBLE_VARIABLE_SIZE], casted_double_value, DOUBLE_VARIABLE_SIZE);
+	memcpy(&memory[*current_stack_pointer - DOUBLE_VARIABLE_SIZE], double_value, DOUBLE_VARIABLE_SIZE);
 
 	// Modifying the value of relevant pointers
 	*current_stack_pointer = *current_stack_pointer - DOUBLE_VARIABLE_SIZE;
@@ -580,7 +515,7 @@ int main ()
 	//Initializing the allocated list of the heap memory
 	struct allocated * headAllocatedList;
 	headAllocatedList = NULL;
-
+	
 	char input[50];
     char command[2];
     char argument1[50];
@@ -627,7 +562,12 @@ int main ()
 					}
 					if (funct_name_alr_exist == 0)
 					{
-						createFrame(argument1, argument2, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+						char function_name[8] = {'0', '0', '0', '0', '0', '0', '0', '0'};
+						for (int i = 0; i < strlen(argument1); ++i)
+						{
+							function_name[i] = argument1[i];
+						}
+						createFrame(function_name, argument2, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
 						if ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) > current_stack_size)
 						{
 							current_stack_size += ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) - current_stack_size);
@@ -679,7 +619,6 @@ int main ()
 				}
 				else
 				{
-					double double_value = atof(argument2);
 					if (strlen(argument2) > 8)
 					{
 						printf("Double value out of range\n");
@@ -694,6 +633,11 @@ int main ()
 					}
 					else
 					{
+						char double_value[8] = {'0', '0', '0', '0', '0', '0', '0', '0'};
+						for (int i = 0; i < strlen(argument2); ++i)
+						{
+							double_value[i] = argument2[i];
+						}
 						create_double_local_variable(argument1, double_value, memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
 						if ((MEMSIZE - current_stack_pointer + DOUBLE_VARIABLE_SIZE) > current_stack_size)
 						{
@@ -826,6 +770,5 @@ int main ()
 			printf("Invalid command\n");
 		}
 	}
-
 	return 0;
 }
