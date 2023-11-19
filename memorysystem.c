@@ -399,6 +399,13 @@ void create_character_buffer_on_heap(struct freelist** head, struct allocated** 
 				if (freeListTraverser == *head)
 				{
 					*head = freeListTraverser->next;
+					if (*head == NULL)
+					{
+						*head = (struct freelist*)malloc(sizeof(struct freelist));
+						(*head)->start = newAllocatedNode->startaddress + size_of_buffer;
+						(*head)->size = 0;
+						(*head)->next = NULL;
+					}
 				}
 				else
 				{
@@ -437,7 +444,7 @@ void delete_character_buffer_on_heap(struct freelist** head, struct allocated** 
 			//marking the memory used by the buffer as free
 			for (int i = allocatedListTraverser->startaddress - 8; i < allocatedListTraverser->startaddress + sizeOfThisAllocatedRegion; ++i)
 			{
-				memory[i] = 'F';
+				memory[i] = '0';
 			}
 
 			//updating the free list
@@ -525,7 +532,7 @@ void show_memory_map(char *memory, int number_of_frames_on_stack, struct var_tra
 	printf("Memory looks like the below representation:\n");
 	for (int i = 0; i < 500; ++i)
 	{
-		printf("%d) %c \n", i + 1, memory[i]);	
+		printf("%d) %c \n", i, memory[i]);	
 	}
 }
 
@@ -567,7 +574,7 @@ int main ()
 
 	for (int i = 0; i < headFreeList->size; ++i)
 	{
-    	memory[i] = 'F';
+    	memory[i] = '0';
 	}
 
 	//Initializing the allocated list of the heap memory
@@ -720,14 +727,49 @@ int main ()
 						create_char_local_variable(argument1, argument2[0], memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
 						if ((MEMSIZE - current_stack_pointer + CHAR_VARIABLE_SIZE) > current_stack_size)
 						{
-							current_stack_size += ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) - CHAR_VARIABLE_SIZE);
+							current_stack_size += ((MEMSIZE - current_stack_pointer + MIN_FRAME_SIZE) - current_stack_size);
 						}
 					}
 				}
 			}
 			else if (strcmp(command, "CH") == 0)
 			{
-				
+				if (variables_of_frames_on_stack_tracker[0] == NULL)
+				{
+					printf("No frame has been created yet where are you going to store the pointer for this?\n");
+				}
+				else
+				{
+					struct freelist * FLT = headFreeList;
+					while (FLT != NULL)
+					{
+						//condition to check if the free region is big enough to store the buffer on the heap
+						if (FLT->size >= atoi(argument2) + 8)
+						{
+							create_character_buffer_on_heap(&headFreeList, &headAllocatedList, argument1, atoi(argument2), memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
+							//if region is big enough then break out of the loop
+							break;
+						}
+						FLT = FLT->next;
+					}
+					if (FLT == NULL)
+					{
+						if (headFreeList->start + atoi(argument2) + current_stack_size > MEMSIZE)
+						{
+							printf("“the heap is full, cannot create more data\n");
+						}
+						else
+						{
+							current_heap_size = headFreeList->start + atoi(argument2) + 8;
+							headFreeList->size = atoi(argument2) + 8;
+							for (int i = headFreeList->start; i < headFreeList->size; ++i)
+							{
+								memory[i] = 'F';
+							}
+							create_character_buffer_on_heap(&headFreeList, &headAllocatedList, argument1, atoi(argument2), memory, &current_stack_pointer, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker);
+						}
+					}
+				}
 			}
 			else {
 				printf("Invalid command\n");
@@ -737,7 +779,20 @@ int main ()
 		{
 			if (strcmp(command, "DH") == 0)
 			{
-				
+				struct allocated * ALT = headAllocatedList;
+				while (ALT != NULL)
+				{
+					if (strcmp(ALT->name, argument1) == 0)
+					{
+						delete_character_buffer_on_heap(&headFreeList, &headAllocatedList, argument1, memory);
+						break;
+					}
+					ALT = ALT->next;
+				}
+				if (ALT == NULL)
+				{
+					printf("the pointer is NULL or already de-allocated\n");
+				}
 			}
 			else
 			{
@@ -748,7 +803,14 @@ int main ()
 		{
 			if (strcmp(command, "DF") == 0)
 			{
-				
+				if (variables_of_frames_on_stack_tracker[0] == NULL)
+				{
+					printf("stack is empty\n");
+				}
+				else
+				{
+					deleteFrame(memory, &number_of_frames_on_stack, variables_of_frames_on_stack_tracker, &current_stack_pointer);
+				}
 			}
 			else if (strcmp(command, "SM") == 0)
 			{
